@@ -1,5 +1,5 @@
 {
-  "name": "dsh-deepsleep",
+  "name": "dsh-slow-wave",
   "version": "0.2.0",
   "type": "module",
   "description": "While DeepSeek Harness sits idle, consolidate its element memory with a local model: merge synonyms, trim descriptions, prune weak edges, and propose hypotheses for the user to confirm — with a backup before every write.",

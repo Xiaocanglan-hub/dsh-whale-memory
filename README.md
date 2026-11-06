@@ -5,7 +5,7 @@
 ```
 packages/
 ├── dsh-memory-brain/   # 元素记忆库：把东西拆成积木存起来
-└── dsh-deepsleep/      # 深度睡眠：空闲时把积木理顺、提猜想
+└── dsh-slow-wave/      # 深度睡眠：空闲时把积木理顺、提猜想
 ```
 
 两个包独立安装，但一起用才有意思：前者负责**记**，后者负责**理**。
@@ -44,7 +44,7 @@ packages/
 
 ```sh
 dsh plugin --profile web add dsh-memory-brain
-dsh plugin --profile web add dsh-deepsleep
+dsh plugin --profile web add dsh-slow-wave
 ```
 
 数据都在 `~/.dsh/` 下，是**人能直接打开改的 JSON**：
