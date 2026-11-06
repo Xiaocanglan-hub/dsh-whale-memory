@@ -1,5 +1,5 @@
 window.__ModuleLoader__.load({
-  id: '@local/dsh-deepsleep',
+  id: 'dsh-slow-wave',
   factory(require) {
     const React = require('react')
     const h = React.createElement
@@ -257,10 +257,10 @@ window.__ModuleLoader__.load({
     }
 
     const CSS = `
-.dsh-deepsleep-settings input[type="number"] { -moz-appearance: textfield; }
-.dsh-deepsleep-settings input[type="number"]::-webkit-outer-spin-button,
-.dsh-deepsleep-settings input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.dsh-deepsleep-settings select option { color: #111; }
+.dsh-slow-wave-settings input[type="number"] { -moz-appearance: textfield; }
+.dsh-slow-wave-settings input[type="number"]::-webkit-outer-spin-button,
+.dsh-slow-wave-settings input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.dsh-slow-wave-settings select option { color: #111; }
 `
 
     return {
@@ -273,7 +273,7 @@ window.__ModuleLoader__.load({
             order: 45,
             label: () => pickStrings().title,
           }, function Wrapper() {
-            return h('div', { className: 'dsh-deepsleep-settings' },
+            return h('div', { className: 'dsh-slow-wave-settings' },
               h('style', null, CSS),
               h(Settings, null))
           })

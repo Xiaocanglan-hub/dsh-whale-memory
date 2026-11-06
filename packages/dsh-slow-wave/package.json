@@ -18,9 +18,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Xiaocanglan-hub/dsh-whale-memory.git",
-    "directory": "packages/dsh-deepsleep"
+    "directory": "packages/dsh-slow-wave"
   },
-  "homepage": "https://github.com/Xiaocanglan-hub/dsh-whale-memory/tree/main/packages/dsh-deepsleep",
+  "homepage": "https://github.com/Xiaocanglan-hub/dsh-whale-memory/tree/main/packages/dsh-slow-wave",
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
