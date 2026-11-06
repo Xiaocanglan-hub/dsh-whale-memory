@@ -24,7 +24,29 @@ export const name = '@local/dsh-memory-brain'
 export const inject = ['tools']
 
 /** 元素分类。新增分类不用改代码，这里只决定 explain 的排列顺序。 */
-const KINDS = ['形状', '立体形状', '颜色', '材质', '表面特征', '味道', '质地', '类别', '部位', '功能', '大小', '声音', '动作']
+const KINDS = ['形状', '立体形状', '颜色', '材质', '表面特征', '状态', '味道', '质地', '类别', '部位', '功能', '大小', '声音', '动作']
+
+/**
+ * 按词形猜类别 —— 只为少烦用户：猜得出来就先归位，猜不出来才去问。
+ * 返回 null 表示真拿不准（这时才进问题队列）。
+ */
+const KIND_HINTS = [
+  [/^(空|满|湿|干|新|旧|干净|脏|亮|暗|热|冷|熟的|生的)的?$/, '状态'],
+  [/色$/, '颜色'],
+  [/味$|^(香|臭)/, '味道'],
+  [/声$/, '声音'],
+  [/体$|(柱|球|锥|立方|长方|圆台|棱柱).*形$|形$/, '立体形状'],
+  [/[盖口柄刃脚尾头翼底边环扣带嘴背片]$/, '部位'],
+  [/^(能|会|可|用来|用于)/, '功能'],
+  [/^(大|小)$|^(巨大|微小|中等|大型|小型)$|(大|小)型$/, '大小'],
+  [/^(塑料|金属|木头|玻璃|布|纸|皮革|陶瓷|橡胶|毛绒|绒毛|不锈钢|铝合金)$/, '材质'],
+  [/^(容器|工具|动物|植物|水果|蔬菜|家具|电器|交通|乐器|建筑|食物|饮料|服装|文具|电子产品)$/, '类别'],
+]
+
+function guessKind(name) {
+  for (const [re, kind] of KIND_HINTS) if (re.test(name)) return kind
+  return null
+}
 
 const SEED_URL = new URL('./data/seed.json', import.meta.url)
 
@@ -94,7 +116,7 @@ const WEIGHT_BY_KIND = {
   类别: 0.9,
   形状: 0.8, 立体形状: 0.8, 颜色: 0.8,
   味道: 0.75,
-  材质: 0.7, 表面特征: 0.7, 质地: 0.7, 部位: 0.7, 功能: 0.7, 大小: 0.7, 动作: 0.7,
+  材质: 0.7, 表面特征: 0.7, 状态: 0.7, 质地: 0.7, 部位: 0.7, 功能: 0.7, 大小: 0.7, 动作: 0.7,
   声音: 0.6,
 }
 
@@ -235,7 +257,7 @@ function enqueue(data, { kind, about, payload }) {
   return item
 }
 
-const KINDS_HINT = '形状 / 立体形状 / 颜色 / 材质 / 表面特征 / 类别 / 部位 / 功能 / 大小 / 味道 / 质地 / 动作 / 声音'
+const KINDS_HINT = '形状 / 立体形状 / 颜色 / 材质 / 表面特征 / 状态 / 类别 / 部位 / 功能 / 大小 / 味道 / 质地 / 动作 / 声音'
 
 /**
  * 问法。故意不写成"请补充元数据"那种口气 ——
@@ -375,6 +397,7 @@ function makeTools() {
         const byUser = args.byUser === true
         const known = []
         const fresh = []
+        const autoKinded = []
         const howOf = (token) => (inferredSet.has(token) ? '推断' : '观察')
         for (const raw of args.elements ?? []) {
           const token = String(raw).trim()
@@ -383,9 +406,11 @@ function makeTools() {
           const how = howOf(token)
           const factor = how === '推断' ? INFERRED_FACTOR : 1
           if (canon === undefined) {
-            ensureElement(data, token, '未分类')
+            const guessed = guessKind(token)
+            ensureElement(data, token, guessed ?? '未分类')
             link(data, args.name, token, round(0.6 * factor), args.note || '新学', how)
-            fresh.push(token)
+            if (guessed === null) fresh.push(token)
+            else autoKinded.push(`${token}→${guessed}`)
             if (byUser) data.elements[token].lock = 'user'
           } else {
             link(data, args.name, canon, round(weightFor(data.elements[canon]) * factor), args.note || '学习', how)
@@ -408,6 +433,9 @@ function makeTools() {
         const grouped = explain(data, args.name)
         const lines = [`学会了「${args.name}」`]
         if (grouped !== null) lines.push(formatExplain(args.name, grouped))
+        if (autoKinded.length > 0) {
+          lines.push(`按词形先归了位（拿不准的才问你）：${autoKinded.join(', ')}`)
+        }
         if (fresh.length > 0) {
           // 没分类的词不丢，而是攒成问题，等用户回来给它归位。
           const qs = await loadQuestions()
