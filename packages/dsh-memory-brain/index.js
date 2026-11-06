@@ -538,9 +538,40 @@ function makeTools() {
   ].map((tool) => ({ ...tool, output: OUTPUT }))
 }
 
+// 给任何人格插件一段"常识提示"。不写死在某个角色里，而是挂成运行时背景：
+// 谁在这个 agent 里说话，谁就在这一步看到它。像 dsh-fish 那种人格插件
+// 不用改一行代码，下一轮就会自己去查库、拆元素。
+const PROMPT_BRIEF = [
+  '【元素记忆库】memory_* 是常识库，不是任务清单，没事别硬用。',
+  '看得出的东西：先 memory_explain 查；查不到再 memory_learn 拆元素，只写看得见的，推断的放 inferred。',
+  '不认识的词：先粗分类，再用 memory_classify 问归属。',
+  '联想用 memory_recall，它把见过的和猜的分开列。',
+  '问"这是什么"走 memory_pending，别重复问；问"你想不想做某事"用你自己的方式。',
+  '没把握就说没把握，别为了填库而编。',
+].join('\n')
+
+const mountPrompt = (hostCtx) => {
+  hostCtx.effect(() =>
+    hostCtx.systemPrompt.context({
+      name: 'memory-brain.brief',
+      order: 640,
+      text: PROMPT_BRIEF,
+    }),
+  )
+}
+
 export function apply(ctx) {
   const disposers = []
   for (const tool of makeTools()) disposers.push(ctx.tools.register(tool))
+
+  // systemPrompt 和 webServer 一样，不保证 apply 时已经就绪；
+  // 用 inject 等它，卸载交给 effect 跟着 fiber 走。
+  if (typeof ctx.inject === 'function') {
+    ctx.inject(['systemPrompt'], mountPrompt)
+  } else if (typeof ctx.get === 'function' && ctx.get('systemPrompt')) {
+    mountPrompt(ctx)
+  }
+
   return () => {
     for (const dispose of disposers) dispose()
   }
