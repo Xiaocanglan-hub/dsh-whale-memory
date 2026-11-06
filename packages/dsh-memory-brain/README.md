@@ -43,7 +43,7 @@ dsh plugin --profile web add dsh-memory-brain
 
 装完刷新页面，`memory_*` 七个工具就在了。库落在 `$DSH_HOME/memory/brain.json`（默认 `~/.dsh/memory/brain.json`），是**人能直接打开改的 JSON**。
 
-首次运行如果还没有库，会用自带的离线种子铺底：**107 个物体 / 92 个元素 / 511 条边**。不出网，不联机，不收集任何东西。
+首次运行如果还没有库，会用自带的离线种子铺底：**104 个物体 / 78 个元素 / 482 条边**。不出网，不联机，不收集任何东西。
 
 ## 一个真实的例子
 
@@ -74,7 +74,7 @@ memory_learn 指甲刀 [长条形,灰色,光滑,金属,反光,铰链,可折叠,�
 
 **Element memory for DeepSeek Harness.** The agent does not store a picture of an apple; it stores `round, red, sweet, crisp, fruit, peel, core` plus the mapping *apple = those seven*. Give it only `round + red` and it finds its way back to the apple.
 
-Seven tools: `memory_learn`, `memory_explain`, `memory_recall`, `memory_stats`, `memory_pending`, `memory_classify`, `memory_answer`. Twelve element kinds. Everything lives in a human-editable `~/.dsh/memory/brain.json`, seeded with 107 objects / 92 elements / 511 edges on first run — offline, no telemetry.
+Seven tools: `memory_learn`, `memory_explain`, `memory_recall`, `memory_stats`, `memory_pending`, `memory_classify`, `memory_answer`. Thirteen element kinds. Everything lives in a human-editable `~/.dsh/memory/brain.json`, seeded with 104 objects / 78 elements / 482 edges on first run — offline, no telemetry.
 
 Two things it refuses to blur: **observed** vs **inferred** (inferred edges are discounted to 0.45× and tagged), and **known** vs **guessed** (`memory_recall` prints guesses in a separate section, never mixed into results). Words it cannot classify are never dropped — they become questions in `~/.dsh/memory/questions.json`, a file other plugins can read.
 
