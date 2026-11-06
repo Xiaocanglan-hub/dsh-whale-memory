@@ -1,0 +1,4 @@
+- insert:
+    - id: memory-brain
+      name: '@local/dsh-memory-brain'
+      config: {}

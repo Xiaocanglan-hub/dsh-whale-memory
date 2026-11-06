@@ -1,0 +1,47 @@
+{
+  "name": "dsh-memory-brain",
+  "version": "0.3.0",
+  "type": "module",
+  "description": "Element memory for DeepSeek Harness: decompose what the agent perceives into the smallest elements, store the mappings, and recognise an object later from its elements. Ships an offline seed of 107 objects / 92 elements.",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "memory",
+    "elements",
+    "recall",
+    "agent-memory"
+  ],
+  "license": "MIT",
+  "author": "Xiaocanglan-hub",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Xiaocanglan-hub/dsh-whale-memory.git",
+    "directory": "packages/dsh-memory-brain"
+  },
+  "homepage": "https://github.com/Xiaocanglan-hub/dsh-whale-memory/tree/main/packages/dsh-memory-brain",
+  "exports": {
+    ".": "./index.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.png"
+  },
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "data/seed.json",
+    "locale/*.json",
+    "icon.png",
+    "README.md"
+  ],
+  "engines": {
+    "dsh": ">=0.2.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "bugs": {
+    "url": "https://github.com/Xiaocanglan-hub/dsh-whale-memory/issues"
+  }
+}

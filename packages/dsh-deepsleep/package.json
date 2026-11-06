@@ -1,0 +1,56 @@
+{
+  "name": "dsh-deepsleep",
+  "version": "0.2.0",
+  "type": "module",
+  "description": "While DeepSeek Harness sits idle, consolidate its element memory with a local model: merge synonyms, trim descriptions, prune weak edges, and propose hypotheses for the user to confirm — with a backup before every write.",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "memory",
+    "consolidation",
+    "ollama",
+    "idle",
+    "agent-memory"
+  ],
+  "license": "MIT",
+  "author": "Xiaocanglan-hub",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Xiaocanglan-hub/dsh-whale-memory.git",
+    "directory": "packages/dsh-deepsleep"
+  },
+  "homepage": "https://github.com/Xiaocanglan-hub/dsh-whale-memory/tree/main/packages/dsh-deepsleep",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.png"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.png",
+    "README.md"
+  ],
+  "engines": {
+    "dsh": ">=0.2.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-connection"
+      ]
+    }
+  },
+  "bugs": {
+    "url": "https://github.com/Xiaocanglan-hub/dsh-whale-memory/issues"
+  }
+}

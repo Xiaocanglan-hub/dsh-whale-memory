@@ -1,0 +1,4 @@
+- insert:
+    - id: deep-sleep
+      name: '@local/dsh-deepsleep'
+      config: {}
