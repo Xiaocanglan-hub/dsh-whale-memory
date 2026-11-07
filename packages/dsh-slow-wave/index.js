@@ -172,7 +172,9 @@ async function dreamAfterSleep(cfg, report, opts = {}) {
       // 方案 C：纸条里给梦贴来源标注。
       // 她自己说过真正危险的是「把拼的当成发生过的」，所以这句"是梦，不是发生过的事"
       // 不是我们加的保险，是把她的判据写回给她看。
-      const note = await addFishNote(`我做了个梦（是梦，不是发生过的事）：${res.wakeLine}`)
+      // 纸条只是一句提醒：她做了什么梦，原文留在 dreams.json，等她自己想讲时用
+      // deepsleep_dream_text 取出来。桌上不该预先替她把话说完。
+      const note = await addFishNote('我做了个梦（是梦，不是发生过的事）')
       report.dream.note = note ? '已留纸条' : '纸条没放成'
       if (note) report.notes.push(`在桌上留了张纸条：「${note.text}」`)
     } else if (dcfg.narrate === 'never') {
@@ -1372,6 +1374,33 @@ export function apply(ctx) {
       }
 
       if (report.backup) lines.push(`备份：${report.backup}`)
+      return asText(lines.join('\n'))
+    },
+  }))
+
+  // 她桌上只放一张"我做了个梦"的提醒，原文不塞进纸条：
+  // 梦是她自己要说的话，什么时候讲、讲多少，由她决定——这里只保证"要讲的时候拿得到"。
+  disposers.push(ctx.tools.register({
+    name: 'deepsleep_dream_text',
+    output: OUTPUT,
+    description:
+      '我昨晚做的梦的原文（可能没讲给谁听过）。用户问起梦见了什么、或者我自己想讲梦的时候，用它把原文取出来照着说，别自己编。',
+    parameters: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        index: { type: 'number', description: '第几近的梦，0 = 最近一次（默认 0）' },
+      },
+    },
+    async execute(args) {
+      const store = await readJson(dreamStorePath(), { dreams: [], discarded: 0 })
+      const list = Array.isArray(store.dreams) ? store.dreams : []
+      const i = Math.max(0, Math.min(list.length - 1, Number(args.index ?? 0) || 0))
+      const d = list[i]
+      if (!d) return asText('还没做过梦。睡着的时候才会有。')
+      const lines = [`${d.date} 的梦（${d.chars} 字）:`, d.text]
+      if (d.wakeLine) lines.push('', `一句提要：${d.wakeLine}`)
+      if (list.length > 1) lines.push('', `还有更早的 ${list.length - 1} 场，index 换个数就能取。`)
       return asText(lines.join('\n'))
     },
   }))

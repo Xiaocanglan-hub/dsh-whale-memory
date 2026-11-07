@@ -61,6 +61,23 @@ export function linkedChain(lines) {
   return { ok: true }
 }
 
+/**
+ * 把句子数组接成一段话。
+ *
+ * 不去动句子里的标点，只在**缺句号**的地方补一个：
+ * 模型常写 `‘它在长。’` 这种引语，无脑加句号会拼出 `。’。` 的双标点；
+ * 反过来直接削掉又会把引语里的句号吃没了。所以先看最后一个实字符是不是句末标点。
+ */
+export function joinLines(lines = []) {
+  const parts = lines.map((l) => String(l ?? '').trim()).filter(Boolean)
+  if (!parts.length) return ''
+  const endsWell = (s) => /[。！？…~]$/u.test(s.replace(/[’”」』）)]+$/u, ''))
+  return parts.reduce((acc, p, i) => {
+    if (i === 0) return p
+    return acc + (endsWell(acc) ? '' : '。') + p
+  }, '')
+}
+
 export function splitLines(text) {
   return String(text ?? '')
     .split(/[。！？\n]+/u)
@@ -103,6 +120,11 @@ export function judge(text, fragments = []) {
   const verbatim = lines.filter((l) => fragments.some((f) => f.includes(l) || l.includes(f))).length
   if (lines.length && verbatim / lines.length > 0.8) reasons.push('几乎全是原句，没有拼过')
   // 比喻、抒情一律不管。用户的原话：「都做梦了当然可以自由一点」。
+
+  // 人称：梦是她自己做的，讲出来的也该是「我」。
+  // 只当软失败——有的梦通篇在写一件物件，第一人称天然缺席，不该因此丢掉整场梦。
+  const meCount = lines.filter((l) => /我|咱/.test(l)).length
+  if (lines.length >= 3 && meCount === 0) reasons.push('通篇没有「我」，不像她自己讲的')
 
   // 三句并排但互不接续 —— 那是材料清单，不是故事。这种情况算"今夜无梦"，不算写坏。
   let nostory = false

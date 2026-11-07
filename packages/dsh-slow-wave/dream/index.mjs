@@ -19,7 +19,7 @@ import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fragments } from './weave.js'
 import { cast, parseStory, renderMaterials, STORY_SYSTEM } from './editor.js'
-import { judge, trim, oneLine, pickWake } from './judge.js'
+import { judge, trim, oneLine, pickWake, joinLines } from './judge.js'
 import { loadDepths, markDepthsUsed, readIncidents, readThings, sampleDepths, snapshotDepths, subjectPool } from './sources.mjs'
 
 const DEFAULT_ENDPOINT = 'http://127.0.0.1:11434/v1/chat/completions'
@@ -186,7 +186,7 @@ export async function makeDream({
     }
 
     // 不修剪比喻：用户定过「梦里可以比喻、也能抒情，都做梦了当然可以自由一点」。
-    const trimmed = trim(story.lines.join('。'), { maxLines: 6, maxChars: 180 })
+    const trimmed = trim(joinLines(story.lines), { maxLines: 6, maxChars: 180 })
     const v = judge(trimmed, c.used)
     log(`第 ${attempt} 次：${v.ok ? '过审' : v.nostory ? '不成故事' : '不过审'}（${v.score}）${v.reasons.length ? ' · ' + v.reasons.join('；') : ''}`)
 
@@ -197,7 +197,7 @@ export async function makeDream({
       pickedThings = Array.isArray(story.things) ? story.things : []
     } else if (v.nostory) {
       noStory = v.reasons[v.reasons.length - 1]
-      lastReject = `${story.lines.join('。')}（${v.reasons[v.reasons.length - 1]}）`
+      lastReject = `${joinLines(story.lines)}（${v.reasons[v.reasons.length - 1]}）`
     } else {
       verdict = v
     }
