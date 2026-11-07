@@ -1,10 +1,46 @@
-# dsh-slow-wave · 忆鲸鲸 · 深度睡眠
+# dsh-slow-wave · 忆鲸鲸 · 潜意识
 
-> 你离开电脑的时候，它打个盹，把白天记乱的东西理顺。
+> 她睡着的时候，两件事：把记乱的东西理顺，然后做一个梦。
 
 [English](#english) · 中文
 
-配合 [`dsh-memory-brain`](https://www.npmjs.com/package/dsh-memory-brain) 使用的整理插件。
+一个包，两件东西（设置页里是同一张卡的上半和下半）：
+
+| | 干什么 | 需要什么 |
+|---|---|---|
+| **睡眠整理** | 合并同义词、精简描述、压缩弱边、按类比提猜想 | 本地模型（复判同义词） |
+| **潜意识梦** | 拿她经历过的旧事拼一个简短小故事，写成便条留在桌上 | 本地模型 + 她的事件流 |
+
+梦**不进她的记忆**：只存在 `~/.dsh/dream/dreams.json`，她的插件读不到；写进她桌面的那张纸条只有一句话，并明确标注「是梦，不是发生过的事」。
+
+配合 [`dsh-memory-brain`](https://www.npmjs.com/package/dsh-memory-brain) 使用（元素记忆库提供"道具"与"常识"两类梦的材料）。
+
+## 运行环境：缺了哪一样，哪一半就不动
+
+这个插件装着两件事——**睡眠整理**（整理元素记忆库）和**潜意识梦**（把她睡着时的旧经历拼成一个简短小故事）。两件事依赖的东西不一样，缺了不会一起坏：
+
+| 依赖 | 少了会怎样 | 谁在提供 |
+|---|---|---|
+| **她的事件流** `~/.dsh-fish/events.jsonl` | 做不成梦（没有可重组的经历）；整理照做 | 大肥鱼插件 `@ssamurias/dsh-fish` 跑起来之后才有 |
+| **元素记忆库** `~/.dsh/memory/brain.json` | 梦照做，但没有"道具/常识"这类材料，故事会单薄 | `dsh-memory-brain` |
+| **本地模型** ollama（默认 `qwen3:4b-instruct-2507-q4_K_M`） | 只整理库，不做梦——没有模型的"梦"只是把碎片并排抄一遍 | ollama 自己，插件会尝试拉起 |
+
+### 部署本地模型（只有这一半需要）
+
+```sh
+# 1. 装 ollama：https://ollama.com/download （Windows 版装完会有托盘图标）
+# 2. 拉模型（约 2.3 GB）
+ollama pull qwen3:4b-instruct-2507-q4_K_M
+# 3. 确认服务在
+curl http://127.0.0.1:11434/v1/models
+```
+
+装完不用重启 DSH：插件每 10 分钟探一次，探到就自己用上。**不想装也可以**——在设置页把模型选成「关」，它只整理库；或者选付费模型（默认 `deepseek-chat`，需要环境变量 `DEEPSEEK_API_KEY`，每晚有预算闸，默认 0.5 元）。
+
+设置页的「潜意识梦」卡片上会把这三项标成 **在 / 缺**，不用回头翻文档。
+
+**为什么「梦」要这些东西**：梦不是凭空编的，它把三样东西重新组合——她真经历过的事（事件流）、她认识的物件（元素记忆库）、她见过的人（事件流里出现的称呼，比如她自己给主人起的名字）。少一样，梦就少一类材料。
+
 
 ## 它会做四件事
 
@@ -46,6 +82,8 @@ deepsleep_run          真睡一次
 ## English
 
 **Sleep for a memory library.** While DeepSeek Harness sits idle, this plugin consolidates the element memory from `dsh-memory-brain`: merge synonyms (with a model's consent), trim descriptions, prune weak one-off edges, and propose hypotheses by analogy between similar objects.
+
+**Requirements (each one disables only part of it):** her event stream at `~/.dsh-fish/events.jsonl` (from `@ssamurias/dsh-fish`) — without it there are no dreams, tidying still works; the element memory library (from `dsh-memory-brain`) — without it dreams are thinner but still happen; a local Ollama model — without it the plugin only tidies and never dreams. The dream settings card marks each of the three as **ok / missing**.
 
 Safety first: **backup before every write**, **never merge if the model does not answer**, **never merge more than 15% of the library in one pass**. Hypotheses never enter the library — they become questions that wait for the user.
 

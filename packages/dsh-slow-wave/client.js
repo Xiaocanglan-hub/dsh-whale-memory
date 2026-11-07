@@ -8,10 +8,77 @@ window.__ModuleLoader__.load({
     const API = '/deepsleep-api'
 
     // 界面上的文字集中放这里，省得散落。按浏览器语言挑一份。
+    //
+    // 命名说明（用户 m03898 要求）：大肥鱼自己有一张卡叫「她做过的梦」
+    // （设置 → 大肥鱼 → 住所），那是**她醒来后自己记的一句**。
+    // 本插件产出的东西不是那个：它在她睡着时被拼出来，她本人没有参与。
+    // 所以这里一律叫「潜意识梦」，并在卡片上写明区别，避免两处混淆。
+    const DREAM_STRINGS = {
+      zh: {
+        title: '潜意识梦',
+        desc: '她睡着时，本插件把她的旧经历重新拼成一个简短小故事，模拟人类做梦，不进她的记忆。',
+        diff: '和大肥鱼「住所 → 她做过的梦」不是一回事：那条是她醒来后自己记的，这句是她睡着时被拼出来的。两处互不覆盖。',
+        on: '允许它做梦',
+        gap: '两次做梦之间至少隔',
+        gapHint: '天。不能设成 0——会变成每个晚上都做，那不是作息，是熬夜。',
+        narrate: '醒来要不要讲',
+        narrateAlways: '每次做完都留一张便条给她看',
+        narrateAsk: '只在她问起的时候讲',
+        narrateNever: '只存档，不讲',
+        list: '她做过的潜意识梦',
+        none: '还没做过梦。素材攒够、能拼成故事的那天，它自己会做。',
+        discarded: '太离谱被忘掉的',
+        stats: '存档里的梦',
+        save: '保存',
+        saving: '保存中…',
+        saved: '已保存',
+        failed: '保存失败',
+        deps: '做梦需要这几样东西都在',
+        depFish: '她的事件流（大肥鱼插件）',
+        depMemory: '元素记忆库（道具与常识）',
+        depModel: '本地模型',
+        depOk: '在',
+        depMissing: '缺',
+        depWarn: '标「缺」的那项不影响另一半功能：少了事件流就做不成梦；少了元素记忆库，梦照做但会单薄；少了本地模型，只整理库不做梦。',
+      },
+      en: {
+        title: 'Subconscious dreams',
+        desc: 'While she sleeps, this plugin stitches her old experiences into a short story, the way a person dreams. It never enters her memory.',
+        diff: 'Not the same as "Dreams she has had" under 大肥鱼 → Home: that one she writes herself after waking; this one is assembled while she sleeps. The two never overwrite each other.',
+        on: 'Allow dreaming',
+        gap: 'At least',
+        gapHint: 'days between dreams. Cannot be 0 — that is not a rhythm, that is staying up all night.',
+        narrate: 'Say it when she wakes',
+        narrateAlways: 'Leave a note every time',
+        narrateAsk: 'Only when she asks',
+        narrateNever: 'Archive only, do not tell',
+        list: 'Subconscious dreams so far',
+        none: 'No dreams yet. One night the material will be enough.',
+        discarded: 'Discarded as too strange',
+        stats: 'Archived',
+        save: 'Save',
+        saving: 'Saving…',
+        saved: 'Saved',
+        failed: 'Save failed',
+        deps: 'Dreaming needs all three of these',
+        depFish: 'Her event stream (dsh-fish)',
+        depMemory: 'Element memory (props and common sense)',
+        depModel: 'Local model',
+        depOk: 'ok',
+        depMissing: 'missing',
+        depWarn: 'A missing item only disables part of it: no event stream means no dreams at all; no element memory means thinner dreams; no local model means tidy only.',
+      },
+    }
+
+    function dreamStrings() {
+      const lang = String((navigator && navigator.language) || 'zh').toLowerCase()
+      return lang.startsWith('zh') ? DREAM_STRINGS.zh : DREAM_STRINGS.en
+    }
+
     const STRINGS = {
       zh: {
-        title: '忆鲸鲸 · 睡眠整理',
-        desc: '空闲时整理元素记忆库：合并重复的说法、剪掉站不住的边、抽查要不要猜点新东西。改了立刻生效，不用重启。',
+        title: '忆鲸鲸 · 潜意识',
+        desc: '它睡着时干两件事：把元素记忆库理顺（合并重复的说法、剪掉站不住的边、抽查要不要猜点新东西），再做一个梦。改了立刻生效，不用重启。',
         idle: '键鼠安静多久算它睡着了',
         idleHint: '分钟。少于这个数它不会动手——你正用着电脑的时候，它不去抢 CPU。',
         gap: '两次整理之间至少隔',
@@ -43,8 +110,8 @@ window.__ModuleLoader__.load({
         minutes: '分钟',
       },
       en: {
-        title: 'YiJingJing · Sleep Tidy',
-        desc: 'Tidies the element memory library while the machine is idle: merges duplicate wording, prunes weak edges, occasionally guesses new combinations. Changes apply immediately.',
+        title: 'YiJingJing · Subconscious',
+        desc: 'While it sleeps it does two things: tidies the element memory library (merges duplicate wording, prunes weak edges, occasionally guesses new combinations), then dreams. Changes apply immediately.',
         idle: 'Count it asleep after keyboard and mouse are quiet for',
         idleHint: 'minutes. Below this it stays out of the way.',
         gap: 'At least this long between two tidies',
@@ -263,9 +330,148 @@ window.__ModuleLoader__.load({
 .dsh-slow-wave-settings select option { color: #111; }
 `
 
+    /**
+     * 潜意识梦面板。
+     *
+     * 刻意和「大肥鱼 → 住所 → 她做过的梦」分开：
+     *   · 那张卡是她醒来后自己记的一句（她的工具 her_dream）
+     *   · 这张卡是本插件在她睡着时拼出来的（她没参与）
+     * 两块数据各存各的，互不覆盖，也不共用同一个开关。
+     */
+    function DreamPanel() {
+      const t = dreamStrings()
+      const [draft, setDraft] = useState(null)
+      const [list, setList] = useState([])
+      const [stats, setStats] = useState({})
+      const [deps, setDeps] = useState(null)
+      const [msg, setMsg] = useState('')
+      const [busy, setBusy] = useState(false)
+
+      const load = useCallback(async () => {
+        try {
+          const res = await fetch(`${API}/dreams`)
+          const body = await res.json()
+          if (body && body.ok) {
+            setDraft(body.dream || { enabled: true, minGapDays: 2, narrate: 'always' })
+            setList(Array.isArray(body.list) ? body.list : [])
+            setStats(body.stats || {})
+            setDeps(body.deps || null)
+          } else {
+            setMsg(`${t.failed}: ${(body && body.error) || ''}`)
+          }
+        } catch (err) {
+          setMsg(`${t.failed}: ${String(err && err.message ? err.message : err)}`)
+        }
+      }, [t])
+
+      useEffect(() => { load() }, [load])
+
+      const patch = (fn) =>
+        setDraft((cur) => {
+          if (cur === null) return cur
+          const next = JSON.parse(JSON.stringify(cur))
+          fn(next)
+          return next
+        })
+
+      const save = useCallback(async () => {
+        if (draft === null) return
+        setBusy(true)
+        setMsg(t.saving)
+        try {
+          const res = await fetch(`${API}/config`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ patch: { dream: draft } }),
+          })
+          const body = await res.json()
+          setMsg(body && body.ok ? t.saved : `${t.failed}: ${(body && body.error) || ''}`)
+        } catch (err) {
+          setMsg(`${t.failed}: ${String(err && err.message ? err.message : err)}`)
+        } finally {
+          setBusy(false)
+        }
+      }, [draft, t])
+
+      if (draft === null) return h('div', { style: { padding: 24, fontSize: 14 } }, msg || '…')
+
+      return h('div', { style: { display: 'grid', gap: 14, padding: '4px 2px 28px', maxWidth: 720 } },
+        h('div', null,
+          h('div', { style: { fontSize: 18, fontWeight: 700 } }, t.title),
+          h('div', { style: { ...hint, marginTop: 6 } }, t.desc),
+          h('div', { style: { ...hint, marginTop: 6, opacity: 0.55 } }, t.diff)),
+
+        // 依赖一栏：缺哪样、缺了会怎样，直接写在面板上，
+        // 不让人去 README 里翻——装完发现不灵，绝大多数是这里。
+        deps
+          ? h('div', { style: box },
+            h('div', { style: rowLabel }, t.deps),
+            h('div', { style: { marginTop: 8, display: 'grid', gap: 6 } },
+              [
+                [t.depFish, deps.fish],
+                [t.depMemory, deps.memory],
+                [t.depModel, deps.model],
+              ].map(([label, d]) =>
+                h('div', { key: label, style: { display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 13 } },
+                  h('span', { style: { ...chip, background: d && d.ok ? '#1f6f43' : '#7a2c2c' } },
+                    d && d.ok ? t.depOk : t.depMissing),
+                  h('span', null, label),
+                  d && d.effect
+                    ? h('span', { style: { ...hint, opacity: 0.6 } }, d.ok ? '' : d.effect)
+                    : null))),
+            h('div', { style: { ...hint, marginTop: 8, opacity: 0.55 } }, t.depWarn))
+          : null,
+
+        h('div', { style: box },
+          h('label', { style: { display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 } },
+            h('input', {
+              type: 'checkbox',
+              checked: draft.enabled !== false,
+              onChange: (e) => patch((d) => { d.enabled = e.target.checked }),
+            }),
+            h('span', null, t.on))),
+
+        h('div', { style: box },
+          h('div', { style: rowLabel }, t.gap),
+          h('div', { style: { marginTop: 6 } },
+            numberField(draft.minGapDays, (n) => patch((d) => { d.minGapDays = Math.max(1, n) }), 1, 30)),
+          h('div', { style: { ...hint, marginTop: 4 } }, t.gapHint)),
+
+        h('div', { style: box },
+          h('div', { style: rowLabel }, t.narrate),
+          h('select', {
+            style: { ...input, width: '100%', maxWidth: 420, marginTop: 6 },
+            value: draft.narrate || 'always',
+            onChange: (e) => patch((d) => { d.narrate = e.target.value }),
+          },
+            h('option', { value: 'always' }, t.narrateAlways),
+            h('option', { value: 'ask' }, t.narrateAsk),
+            h('option', { value: 'never' }, t.narrateNever))),
+
+        h('div', { style: box },
+          h('div', { style: rowLabel }, `${t.list}（${stats.total ?? list.length}）`),
+          list.length
+            ? h('div', { style: { marginTop: 8, display: 'grid', gap: 8 } },
+              list.map((d, i) => h('div', { key: `${d.date || ''}-${i}`, style: { fontSize: 13, lineHeight: 1.6 } },
+                h('span', { style: { ...chip, marginRight: 8 } }, d.date || ''),
+                h('span', null, d.text || ''),
+                d.score != null ? h('span', { style: { ...chip, marginLeft: 8 } }, `${d.score}`) : null)))
+            : h('div', { style: { ...hint, marginTop: 6 } }, t.none),
+          stats.discarded
+            ? h('div', { style: { ...hint, marginTop: 8 } }, `${t.discarded}：${stats.discarded}`)
+            : null),
+
+        h('div', { style: { display: 'flex', gap: 10, alignItems: 'center' } },
+          h('button', { style: button, disabled: busy, onClick: save }, t.save),
+          h('span', { style: chip }, msg)))
+    }
+
     return {
       inject: ['slots'],
       apply(ctx) {
+        // 一张卡，两件事：上面是睡眠整理，下面是潜意识梦。
+        // 2026-11-07 用户定名「忆鲸鲸 · 潜意识」——合并成一张，不再分两个侧栏条目，
+        // 因为对外它们是同一个能力：睡着的时候它在想什么。
         ctx.slots.inject('settings.section', function* () {
           yield ctx.slots.register({
             name: 'settings.section',
@@ -275,7 +481,9 @@ window.__ModuleLoader__.load({
           }, function Wrapper() {
             return h('div', { className: 'dsh-slow-wave-settings' },
               h('style', null, CSS),
-              h(Settings, null))
+              h(Settings, null),
+              h('hr', { style: { margin: '22px 0', border: 0, borderTop: '1px solid rgba(255,255,255,0.12)' } }),
+              h(DreamPanel, null))
           })
         })
       },

@@ -1,8 +1,8 @@
 {
   "name": "dsh-slow-wave",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
-  "description": "While DeepSeek Harness sits idle, consolidate its element memory with a local model: merge synonyms, trim descriptions, prune weak edges, and propose hypotheses for the user to confirm — with a backup before every write.",
+  "description": "What it does while she sleeps: tidy the element memory with a local model (model-approved synonym merges, trimmed descriptions, pruned weak edges, analogies to confirm), then dream — stitch her own past experiences into a short story and leave one labelled line on her desk. Backup before every write; the dream never enters her memory.",
   "keywords": [
     "dsh",
     "dsh-plugin",
@@ -11,7 +11,9 @@
     "consolidation",
     "ollama",
     "idle",
-    "agent-memory"
+    "agent-memory",
+    "dream",
+    "dsh-fish"
   ],
   "license": "MIT",
   "author": "Xiaocanglan-hub",
@@ -33,10 +35,24 @@
     "cordis.patch.yml",
     "locale/*.json",
     "icon.png",
+    "dream/*.js",
+    "dream/*.mjs",
     "README.md"
   ],
   "engines": {
     "dsh": ">=0.2.0"
+  },
+  "peerDependencies": {
+    "dsh-memory-brain": "*",
+    "@ssamurias/dsh-fish": "*"
+  },
+  "peerDependenciesMeta": {
+    "dsh-memory-brain": {
+      "optional": true
+    },
+    "@ssamurias/dsh-fish": {
+      "optional": true
+    }
   },
   "dsh": {
     "bundle": {

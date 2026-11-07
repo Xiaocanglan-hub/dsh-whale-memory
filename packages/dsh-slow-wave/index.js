@@ -18,6 +18,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 import { execFile, spawn } from 'node:child_process'
+import { makeDream } from './dream/index.mjs'
 
 /* ------------------------------------------------------------------ 路径 */
 
@@ -29,6 +30,174 @@ const statePath = () => join(dir(), 'state.json')
 const dreamsDir = () => join(dir(), 'dreams')
 const backupsDir = () => join(dir(), 'backups')
 const brainPath = () => join(dshHome(), 'memory', 'brain.json')
+// 潜意识梦的存档。刻意放在 `dream/` 而不是 `deepsleep/`：
+// 它和「大肥鱼自带的、她自己记的梦」是两码事，路径上就分开，谁也别覆盖谁。
+const dreamStorePath = () => join(dshHome(), 'dream', 'dreams.json')
+
+/* ------------------------------------------------- 她的那一半（只读/只添） */
+
+/** 她的事件流在哪。允许用环境变量指到别处（测试鱼就是这么用的）。 */
+export const fishRoot = () => process.env.DSH_FISH_HOME || join(homedir(), '.dsh-fish')
+
+/** 她桌面上的纸条。**只往里添**，绝不删改她自己的东西。 */
+const notePath = () => join(fishRoot(), 'notes.json')
+
+/**
+ * 往她桌上放一张纸条。
+ *
+ * 我们只做"添一张"，不碰已有条目、不排序、不清理——那张桌子是她的，
+ * 别的插件和 her_note 也在往里写。读不到就当作空表，写坏了就放弃这一张，
+ * 绝不因为放纸条失败而让整场梦白做。
+ */
+async function addFishNote(text) {
+  const body = String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, 200)
+  if (!body) return null
+  try {
+    const cur = await readJson(notePath(), [])
+    const list = Array.isArray(cur) ? cur : []
+    const now = new Date()
+    const note = {
+      id: `note-${now.getTime()}-d${Math.floor(Math.random() * 1296).toString(36)}`,
+      text: body,
+      due: '',
+      created: now.toISOString(),
+      status: 'open',
+      reason: null,
+      closedAt: null,
+    }
+    list.push(note)
+    await mkdir(fishRoot(), { recursive: true })
+    await writeFile(notePath(), `${JSON.stringify(list, null, 2)}\n`, 'utf8')
+    return note
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 这个插件跑起来依赖什么，缺了会怎样。
+ *
+ * 用户问过一句「标注了潜意识梦环境要求前两个插件了吗」——没标，所以补在这里：
+ * 依赖不是可选项，是要在界面上说清楚"少了哪一样，哪一半功能就不动"。
+ */
+async function probeDeps(cfg) {
+  const local = cfg?.models?.local ?? {}
+  const baseUrl = String(local.baseUrl || 'http://127.0.0.1:11434/v1')
+  let model = false
+  try {
+    model = await localReachable(baseUrl)
+  } catch {
+    model = false
+  }
+  return {
+    // 她的事件流：没有它就没有可梦的素材（这不是"少点东西"，是整件事做不成）
+    fish: {
+      ok: existsSync(join(fishRoot(), 'events.jsonl')),
+      path: join(fishRoot(), 'events.jsonl'),
+      need: '大肥鱼插件（@ssamurias/dsh-fish）跑起来之后才有',
+      effect: '没有它：做不成梦（没有可重组的经历）',
+    },
+    // 元素记忆库：没有它梦还做，只是没有"道具"，故事会单薄
+    memory: {
+      ok: existsSync(brainPath()),
+      path: brainPath(),
+      need: '元素记忆库插件（dsh-memory-brain）',
+      effect: '没有它：梦照做，但少了道具与常识，故事会单薄',
+    },
+    // 本地模型：负责把材料写成句子；没有它只能按选材顺序硬拼，那样不成梦
+    model: {
+      ok: model,
+      baseUrl,
+      need: 'ollama 本地模型（默认 qwen3:4b-instruct-2507-q4_K_M）',
+      effect: '没有它：只整理库，不做梦',
+    },
+  }
+}
+
+/**
+ * 睡完之后做一场梦。
+ *
+ * 顺序是刻意的：先整理库（这是主任务），再做梦。梦是加餐，
+ * 加餐失败绝不能影响主任务——所以整个函数包在 try 里。
+ */
+async function dreamAfterSleep(cfg, report, opts = {}) {
+  const dcfg = { ...DEFAULTS.dream, ...(cfg.dream ?? {}) }
+  report.dream = { attempted: false }
+  if (!dcfg.enabled) {
+    report.dream.skipped = '没允许做梦'
+    return
+  }
+
+  const state = await readJson(statePath(), {})
+  const gapDays = dcfg.minGapDays > 0 ? dcfg.minGapDays : 1
+  // 手动跑一次（force）不受间隔限制——那本来就是我按了"现在就试一次"。
+  if (!opts.force && typeof state.lastDreamAt === 'string') {
+    const days = (Date.now() - Date.parse(state.lastDreamAt)) / 86400000
+    if (Number.isFinite(days) && days < gapDays) {
+      report.dream.skipped = `离上次做梦不到 ${gapDays} 天（${days.toFixed(1)} 天前）`
+      return
+    }
+  }
+
+  report.dream.attempted = true
+  const useModel = cfg.models?.mode !== 'off'
+  if (useModel && cfg.models?.mode === 'local') {
+    // 起不来就不做梦：没有模型的"梦"只是把碎片并排抄一遍，那是占她寿命
+    try {
+      await ensureLocalModel(cfg, { waitMs: 25000 })
+    } catch (e) {
+      report.dream.skipped = `本地模型起不来（${e?.message ?? e}）`
+      return
+    }
+  }
+
+  const local = cfg.models?.local ?? {}
+  const baseUrl = String(local.baseUrl || 'http://127.0.0.1:11434/v1').replace(/\/$/, '')
+  const res = await makeDream({
+    fishRoot: fishRoot(),
+    useModel,
+    endpoint: `${baseUrl}/chat/completions`,
+    model: local.model || 'qwen3:4b-instruct-2507-q4_K_M',
+    log: (s) => report.notes.push(`梦：${s}`),
+  })
+
+  report.dream.status = res.status
+  if (res.status === 'ok') {
+    report.dream.text = res.dream.text
+    report.dream.chars = res.dream.chars
+    report.dream.wakeLine = res.wakeLine
+    report.notes.push(`做了个梦（${res.dream.chars} 字）：${res.dream.text}`)
+
+    if (dcfg.narrate === 'always') {
+      // 方案 C：纸条里给梦贴来源标注。
+      // 她自己说过真正危险的是「把拼的当成发生过的」，所以这句"是梦，不是发生过的事"
+      // 不是我们加的保险，是把她的判据写回给她看。
+      const note = await addFishNote(`我做了个梦（是梦，不是发生过的事）：${res.wakeLine}`)
+      report.dream.note = note ? '已留纸条' : '纸条没放成'
+      if (note) report.notes.push(`在桌上留了张纸条：「${note.text}」`)
+    } else if (dcfg.narrate === 'never') {
+      report.dream.note = '只存档，不讲'
+    } else {
+      report.dream.note = '等她问起再说'
+    }
+  } else {
+    report.dream.reason = res.reason
+    report.notes.push(
+      res.status === 'none'
+        ? `今夜无梦：${res.reason}`
+        : res.status === 'discarded'
+          ? `这个梦写坏了，忘掉了（累计 ${res.discarded} 个）`
+          : `今夜无梦：${res.reason}`,
+    )
+  }
+
+  await writeJsonAtomic(statePath(), {
+    ...state,
+    lastDreamAt: new Date().toISOString(),
+    lastDreamStatus: res.status,
+    lastDreamText: res.status === 'ok' ? res.dream.text : '',
+  })
+}
 
 /* ---------------------------------------------------------------- 默认配置 */
 
@@ -82,6 +251,21 @@ const DEFAULTS = {
   backup: { keep: 10 },
   // 猜想的限额：一夜最多提几个，免得醒来发现被问题淹没。
   hypothesize: { maxPerNight: 5 },
+  /**
+   * 潜意识梦。
+   *
+   * 和大肥鱼「住所 → 她做过的梦」是两件事，别混：
+   *   那张卡是她醒来后**自己记**的一句（her_dream，写进她的事件流）；
+   *   这里是她睡着时**被拼出来**的，她本人没有参与，也不进她的记忆。
+   * 所以数据分开存（$DSH_HOME/dream/dreams.json）、开关分开、显示分开。
+   */
+  dream: {
+    enabled: true,
+    // 两次做梦至少隔几天。刻意不给 0 —— 关掉是关掉，不是每天做。
+    minGapDays: 2,
+    // 醒来怎么讲：always 每次留便条 · ask 只在她问的时候讲 · never 只存档
+    narrate: 'always',
+  },
 }
 
 /* ------------------------------------------------------------------ 小工具 */
@@ -865,6 +1049,27 @@ async function runDream(cfg, { dryRun = false, force = false } = {}) {
       lastQueued: report.queued ?? 0,
     })
   }
+
+  // 整理完了才做梦：梦是加餐，主机任务失败时不该跑到这儿来
+  if (!dryRun) {
+    try {
+      await dreamAfterSleep(cfg, report, { force })
+      // 没做成的理由也写进报告——不然用户只会看到"这次没有梦"，不知道为什么
+      if (report.dream?.skipped) report.notes.push(`没做梦：${report.dream.skipped}`)
+      // 梦的结果也算这次睡醒的一部分，报告要重新落一次
+      await writeJsonAtomic(join(dreamsDir(), reportName), report)
+      const st = await readJson(statePath(), {})
+      await writeJsonAtomic(statePath(), {
+        ...st,
+        lastDream: report.dream?.status ?? '',
+        lastDreamText: report.dream?.text ?? '',
+      })
+    } catch (e) {
+      report.dream = { attempted: true, status: 'error', reason: String(e?.message ?? e) }
+      report.notes.push(`做梦这步出错（不影响整理）：${e?.message ?? e}`)
+    }
+  }
+
   return report
 }
 
@@ -941,7 +1146,32 @@ function apiRoutes(ctx, disposers) {
           } catch {
             idleSec = null
           }
-          send(200, { ok: true, config, defaults: DEFAULTS, usage, state, idleSec, brain: brainPath() })
+          send(200, { ok: true, config, defaults: DEFAULTS, usage, state, idleSec, deps: await probeDeps(config), brain: brainPath() })
+          return
+        }
+        if (url.pathname === '/deepsleep-api/dreams' && (req.method === 'GET' || req.method === 'HEAD')) {
+          await ensureDirs()
+          const config = await loadConfig()
+          // 梦的存档在另一处（由做梦脚本写），读不到就当还没做过梦——
+          // 设置页不该因为另一个东西没跑过就整页报错。
+          const store = await readJson(dreamStorePath(), { dreams: [], discarded: 0 })
+          const list = Array.isArray(store?.dreams) ? store.dreams.slice(0, 8) : []
+          send(200, {
+            ok: true,
+            dream: config.dream ?? DEFAULTS.dream,
+            list: list.map((d) => ({
+              date: String(d?.date ?? ''),
+              text: String(d?.text ?? ''),
+              chars: Number(d?.chars ?? 0),
+              score: d?.score ?? null,
+            })),
+            stats: {
+              total: Array.isArray(store?.dreams) ? store.dreams.length : 0,
+              discarded: Number(store?.discarded ?? 0),
+            },
+            deps: await probeDeps(config),
+            path: dreamStorePath(),
+          })
           return
         }
         if (url.pathname === '/deepsleep-api/config' && req.method === 'POST') {

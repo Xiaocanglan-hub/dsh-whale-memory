@@ -35,6 +35,14 @@
 **3. 猜测永远单独列一段。**
 `memory_recall` 的结尾是「另外，我还在瞎猜（别当真）」。「见过的」和「猜的」混在一起，用户就看不出区别，也就不会去纠正了。
 
+## 环境要求
+
+**不需要本地模型，也不需要任何 API key。**
+
+这个插件做的事情是查表、算权重、做除法——代码里**一次模型调用都没有**（`grep 11434`、`grep chat/completions` 命中 0）。拆元素靠正则与别名表，"像不像"靠 `命中权重之和 ÷ √元素个数`。所以它装了就能用，不占 GPU、不连网、不花钱。
+
+需要模型的是同系列的 [`dsh-slow-wave`](https://www.npmjs.com/package/dsh-slow-wave)（合并同义词时让模型复判、做梦时写句子），那一半才需要部署 ollama。
+
 ## 安装
 
 ```sh
@@ -73,6 +81,8 @@ memory_learn 指甲刀 [长条形,灰色,光滑,金属,反光,铰链,可折叠,�
 ## English
 
 **Element memory for DeepSeek Harness.** The agent does not store a picture of an apple; it stores `round, red, sweet, crisp, fruit, peel, core` plus the mapping *apple = those seven*. Give it only `round + red` and it finds its way back to the apple.
+
+**Requirements: none.** No local model, no API key — `grep 11434` and `grep chat/completions` find nothing in this package. Scoring is `sum of matched weights ÷ √(requested elements)`. Only its sibling [`dsh-slow-wave`](https://www.npmjs.com/package/dsh-slow-wave) needs Ollama, for model-assisted merges and for dreaming.
 
 Seven tools: `memory_learn`, `memory_explain`, `memory_recall`, `memory_stats`, `memory_pending`, `memory_classify`, `memory_answer`. Thirteen element kinds. Everything lives in a human-editable `~/.dsh/memory/brain.json`, seeded with 104 objects / 78 elements / 482 edges on first run — offline, no telemetry.
 
