@@ -129,13 +129,27 @@ async function dreamAfterSleep(cfg, report, opts = {}) {
   }
 
   const state = await readJson(statePath(), {})
-  const gapDays = dcfg.minGapDays > 0 ? dcfg.minGapDays : 1
-  // 手动跑一次（force）不受间隔限制——那本来就是我按了"现在就试一次"。
-  if (!opts.force && typeof state.lastDreamAt === 'string') {
-    const days = (Date.now() - Date.parse(state.lastDreamAt)) / 86400000
-    if (Number.isFinite(days) && days < gapDays) {
-      report.dream.skipped = `离上次做梦不到 ${gapDays} 天（${days.toFixed(1)} 天前）`
-      return
+  // 她的"长大"按现实日子算，不按醒了几次算：一天最多一场梦。
+  // 想回到"醒一次一场"就把 freq 设成 'wake'，那时才看 minGapDays。
+  const freq = dcfg.freq === 'wake' ? 'wake' : 'day'
+  const todayKey = dayKey(new Date())
+  if (!opts.force) {
+    if (freq === 'day') {
+      const doneToday = state.lastDreamDay === todayKey
+        || (typeof state.lastDreamAt === 'string' && dayKey(new Date(state.lastDreamAt)) === todayKey)
+      if (doneToday) {
+        report.dream.skipped = `${todayKey} 已经做过一场梦了（一天一场）`
+        return
+      }
+    } else {
+      const gapDays = dcfg.minGapDays > 0 ? dcfg.minGapDays : 0
+      if (gapDays > 0 && typeof state.lastDreamAt === 'string') {
+        const days = (Date.now() - Date.parse(state.lastDreamAt)) / 86400000
+        if (Number.isFinite(days) && days < gapDays) {
+          report.dream.skipped = `离上次做梦不到 ${gapDays} 天（${days.toFixed(1)} 天前）`
+          return
+        }
+      }
     }
   }
 
@@ -198,6 +212,8 @@ async function dreamAfterSleep(cfg, report, opts = {}) {
   await writeJsonAtomic(statePath(), {
     ...state,
     lastDreamAt: new Date().toISOString(),
+    // 只有真做出来才记"今天做过了"——失败不该把当天的名额吃掉
+    lastDreamDay: res.status === 'ok' ? dayKey(new Date()) : state.lastDreamDay,
     lastDreamStatus: res.status,
     lastDreamText: res.status === 'ok' ? res.dream.text : '',
   })
@@ -265,11 +281,23 @@ const DEFAULTS = {
    */
   dream: {
     enabled: true,
-    // 两次做梦至少隔几天。刻意不给 0 —— 关掉是关掉，不是每天做。
-    minGapDays: 2,
+    /**
+     * 多久做一场梦。
+     *   'day'  —— 一天最多一场（默认）。按现实日子算，不按她醒了几次算：
+     *             她的"长大"是现实时间，不是醒的次数。
+     *   'wake' —— 每次睡着都可能做一场，再用 minGapDays 兜个底。
+     */
+    freq: 'day',
+    // 仅 freq='wake' 时生效：两次做梦至少隔几天（0 = 每次醒都做）。
+    minGapDays: 1,
     // 醒来怎么讲：always 每次留便条 · ask 只在她问的时候讲 · never 只存档
     narrate: 'always',
   },
+}
+
+/** 本地日历日，YYYY-MM-DD。用本地时区而不是 UTC —— 梦是按人的作息算的。 */
+function dayKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 /* ------------------------------------------------------------------ 小工具 */

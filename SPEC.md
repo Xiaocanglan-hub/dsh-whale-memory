@@ -221,7 +221,7 @@ score = Σ(命中元素的 w) / sqrt(要几个元素)
 
 | 东西 | 位置 | 说明 |
 |---|---|---|
-| 梦存档 | `~/.dsh/dream/dreams.json` | 一天一条，重跑覆盖；最多 120 条 |
+| 梦存档 | `~/.dsh/dream/dreams.json` | 一场一条，带 `id` / `date` / `time`；同日不覆盖；最多 120 条 |
 | 潜意识库 | `~/.dsh/dream/subconscious.jsonl` | 只收"沉下去"的，上限 4000 |
 | 事件库 | `~/.dsh/dream/incidents.json` | 对话压成的"事情" |
 | 桌上纸条 | `~/.dsh-fish/notes.json` 追加一条 | 只有一句，格式 `我做了个梦（是梦，不是发生过的事）：…` |
@@ -264,7 +264,8 @@ score = Σ(命中元素的 w) / sqrt(要几个元素)
 | 整理间隔 | 30 分钟 | `idle.minGapMinutes` |
 | 每晚预算（付费模式） | 0.5 元 | `models.paid.budgetPerNightCny` |
 | 一晚最多猜想 | 5 条 | `hypothesize.maxPerNight` |
-| 做梦间隔 | ≥1 天（下限不可为 0） | `dream.minGapDays` |
+| 做梦频率 | 一天最多一场（`freq:'day'`，按本地日历日） | `dream.freq` |
+| 做梦间隔 | 仅 `freq:'wake'` 时生效，≥0 天 | `dream.minGapDays` |
 
 ---
 

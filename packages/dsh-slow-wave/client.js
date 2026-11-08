@@ -19,8 +19,13 @@ window.__ModuleLoader__.load({
         desc: '她睡着时，本插件把她的旧经历重新拼成一个简短小故事，模拟人类做梦，不进她的记忆。',
         diff: '和大肥鱼「住所 → 她做过的梦」不是一回事：那条是她醒来后自己记的，这句是她睡着时被拼出来的。两处互不覆盖。',
         on: '允许它做梦',
+        freq: '多久做一场梦',
+        freqDay: '一天一场（按现实日子算）',
+        freqDayHint: '推荐。她的"长大"按现实时间算，不按醒了几次算——不然一晚上醒四次，就有四个梦。',
+        freqWake: '每次睡着都可能做一场',
+        freqWakeHint: '醒一次就可能有一场。梦多，但一个晚上能冒出好几个。',
         gap: '两次做梦之间至少隔',
-        gapHint: '天。不能设成 0——会变成每个晚上都做，那不是作息，是熬夜。',
+        gapHint: '天。设成 0 就是每次睡着都做。',
         narrate: '醒来要不要讲',
         narrateAlways: '每次做完都留一张便条给她看',
         narrateAsk: '只在她问起的时候讲',
@@ -46,8 +51,13 @@ window.__ModuleLoader__.load({
         desc: 'While she sleeps, this plugin stitches her old experiences into a short story, the way a person dreams. It never enters her memory.',
         diff: 'Not the same as "Dreams she has had" under 大肥鱼 → Home: that one she writes herself after waking; this one is assembled while she sleeps. The two never overwrite each other.',
         on: 'Allow dreaming',
+        freq: 'How often she dreams',
+        freqDay: 'Once a day (real calendar days)',
+        freqDayHint: 'Recommended. Her growing-up is measured in real time, not in wake-ups — otherwise four wake-ups a night means four dreams.',
+        freqWake: 'Once per wake-up',
+        freqWakeHint: 'Every time she falls asleep she may dream. More dreams, but several can pile up in one night.',
         gap: 'At least',
-        gapHint: 'days between dreams. Cannot be 0 — that is not a rhythm, that is staying up all night.',
+        gapHint: 'days between dreams. 0 means every time she sleeps.',
         narrate: 'Say it when she wakes',
         narrateAlways: 'Leave a note every time',
         narrateAsk: 'Only when she asks',
@@ -365,7 +375,7 @@ window.__ModuleLoader__.load({
           const res = await fetch(`${API}/dreams`)
           const body = await res.json()
           if (body && body.ok) {
-            setDraft(body.dream || { enabled: true, minGapDays: 2, narrate: 'always' })
+            setDraft(body.dream || { enabled: true, freq: 'day', minGapDays: 1, narrate: 'always' })
             setList(Array.isArray(body.list) ? body.list : [])
             setStats(body.stats || {})
             setDeps(body.deps || null)
@@ -445,10 +455,24 @@ window.__ModuleLoader__.load({
             h('span', null, t.on))),
 
         h('div', { style: box },
-          h('div', { style: rowLabel }, t.gap),
-          h('div', { style: { marginTop: 6 } },
-            numberField(draft.minGapDays, (n) => patch((d) => { d.minGapDays = Math.max(1, n) }), 1, 30)),
-          h('div', { style: { ...hint, marginTop: 4 } }, t.gapHint)),
+          h('div', { style: rowLabel }, t.freq),
+          h('select', {
+            style: { ...input, width: '100%', maxWidth: 420, marginTop: 6 },
+            value: draft.freq === 'wake' ? 'wake' : 'day',
+            onChange: (e) => patch((d) => { d.freq = e.target.value }),
+          },
+            h('option', { value: 'day' }, t.freqDay),
+            h('option', { value: 'wake' }, t.freqWake)),
+          h('div', { style: { ...hint, marginTop: 4 } },
+            draft.freq === 'wake' ? t.freqWakeHint : t.freqDayHint)),
+
+        draft.freq === 'wake'
+          ? h('div', { style: box },
+            h('div', { style: rowLabel }, t.gap),
+            h('div', { style: { marginTop: 6 } },
+              numberField(draft.minGapDays, (n) => patch((d) => { d.minGapDays = Math.max(0, n) }), 0, 30)),
+            h('div', { style: { ...hint, marginTop: 4 } }, t.gapHint))
+          : null,
 
         h('div', { style: box },
           h('div', { style: rowLabel }, t.narrate),
