@@ -1,6 +1,6 @@
 {
   "name": "dsh-school",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "description": "让她自己补上那些你没答、她也没懂的问题：聊天里悬着的问被记下来，你不看她的时候她自己去查，查到了在你桌上留一张纸条。只读她的经历，不写她的记忆，也不影响她的成长。",
   "author": "Xiaocanglan-hub",

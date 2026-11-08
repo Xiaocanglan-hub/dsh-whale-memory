@@ -369,6 +369,7 @@ const learnStatePath = () => join(dshHome(), 'school', 'state.json')
 const LEARN_DEFAULTS = {
   enabled: true,
   checkIntervalMinutes: 30,
+  gate: 'off', // off = 不管你在不在用电脑；idle = 只在键鼠安静时学
   minIdleMinutes: 10,
   window: ['08:00', '23:00'],
   maxPerDay: 5,
@@ -487,9 +488,13 @@ function startLearnLoop(onError) {
         const used = (st.days && st.days[dayKey(now)]) || 0
         await dbg('used=' + used + ' inWindow=' + inWindow(cfg.window, now))
         if (used < cfg.maxPerDay && inWindow(cfg.window, now)) {
-          const idle = await systemIdleSeconds()
-          await dbg('idle=' + idle + ' used=' + used)
-          if (idle !== null && idle >= cfg.minIdleMinutes * 60) {
+          let canLearn = true
+          if (cfg.gate === 'idle') {
+            const idle = await systemIdleSeconds()
+            await dbg('idle=' + idle + ' used=' + used)
+            canLearn = idle !== null && idle >= cfg.minIdleMinutes * 60
+          }
+          if (canLearn) {
             await dbg('going to learn')
             const res = await learnOnce()
             await dbg('learn status=' + res.status)
@@ -545,7 +550,7 @@ export function apply(ctx) {
           text: [
             `扫完了：新收 ${r.added} 条 · 合并进已有 ${r.merged} 条` + (r.skippedCap ? ` · 当天满了跳过 ${r.skippedCap} 条` : ''),
             `现在悬着 ${r.open} 条，一共记过 ${r.total} 条。`,
-          ].join('\n'),
+          ].filter(Boolean).join('\n'),
         }
       },
     },
@@ -896,13 +901,13 @@ export function apply(ctx) {
         const cfg = await readLearnConfig()
         const st = await readLearnState()
         const used = (st.days && st.days[dayKey(new Date())]) || 0
-        const idle = await systemIdleSeconds()
+        const idle = cfg.gate === 'idle' ? await systemIdleSeconds() : null
         return {
           text: [
             `自动学习：${cfg.enabled ? '开着' : '关着'}`,
-            `节奏：每 ${cfg.checkIntervalMinutes} 分钟看一次；只在 ${cfg.window.join('–')} 之间、你键鼠安静 ${cfg.minIdleMinutes} 分钟后才动手，一天最多 ${cfg.maxPerDay} 条`,
+            `节奏：每 ${cfg.checkIntervalMinutes} 分钟看一次；只在 ${cfg.window.join('–')} 之间动手，一天最多 ${cfg.maxPerDay} 条` + (cfg.gate === 'idle' ? `；另外要求键鼠安静 ${cfg.minIdleMinutes} 分钟` : '；不管你在不在用电脑'),
             `今天已学 ${used} 条`,
-            `现在键鼠空闲：${idle === null ? '读不到' : Math.round(idle / 60) + ' 分钟'}`,
+            cfg.gate === 'idle' ? `现在键鼠空闲：${idle === null ? '读不到' : Math.round(idle / 60) + ' 分钟'}` : null,
             st.lastLearnAt
               ? `上次：${st.lastFocus} → ${st.lastStatus === 'ok' ? '学到了' : '没学成（' + (st.lastReason || '') + '）'}`
               : '还没自动学过',
