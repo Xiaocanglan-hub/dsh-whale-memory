@@ -327,8 +327,23 @@ function makeTools() {
       async execute(args) {
         const data = await loadBrain()
         const grouped = explain(data, args.name)
-        if (grouped === null) return { text: `库里没有「${args.name}」。` }
-        return { text: formatExplain(args.name, grouped) }
+        if (grouped !== null) return { text: formatExplain(args.name, grouped) }
+        // 名字差一点没打中时，别只回一句"没有"——把名字里带这个词的都报出来。
+        // 典型场景：库里存的是「大树」，对方查的是「树」。
+        const q = String(args.name ?? '').trim()
+        const near = q
+          ? Object.keys(data.objects ?? {}).filter((n) => n !== q && n.includes(q)).slice(0, 5)
+          : []
+        if (near.length === 0) return { text: `库里没有「${args.name}」。` }
+        const hits = near
+          .map((n) => {
+            const g = explain(data, n)
+            return g === null ? null : `「${n}」= ${formatExplain(n, g).replace(/^「[^」]*」= /, '')}`
+          })
+          .filter(Boolean)
+        return {
+          text: `库里没有「${args.name}」，但名字里带这两个字的有：\n${hits.join('\n')}`,
+        }
       },
     },
     {

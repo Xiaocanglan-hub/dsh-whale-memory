@@ -1,6 +1,6 @@
 {
   "name": "dsh-memory-brain",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "type": "module",
   "description": "Element memory for DeepSeek Harness: decompose what the agent perceives into the smallest elements, store the mappings, and recognise an object later from its elements. Ships an offline seed of 107 objects / 92 elements.",
   "keywords": [

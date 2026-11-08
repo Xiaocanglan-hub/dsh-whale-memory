@@ -1,6 +1,6 @@
 {
   "name": "dsh-slow-wave",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "type": "module",
   "description": "What it does while she sleeps: tidy the element memory with a local model (model-approved synonym merges, trimmed descriptions, pruned weak edges, analogies to confirm), then dream — stitch her own past experiences into a short story and leave one labelled line on her desk. Backup before every write; the dream never enters her memory.",
   "keywords": [

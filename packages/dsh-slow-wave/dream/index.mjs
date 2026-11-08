@@ -215,10 +215,15 @@ export async function makeDream({
     return { status: 'discarded', reason: verdict.reasons.join('；') || '不合格', discarded: store0.discarded, stats }
   }
 
-  const today = new Date().toISOString().slice(0, 10)
+  const now = new Date()
+  const today = now.toISOString().slice(0, 10)
+  const clock = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
   const dream = {
+    // 一天可以做好几场梦，各自留档。早先按日期覆盖，会出现"纸条在、梦没了"。
+    id: `d-${now.getTime().toString(36)}`,
     date: today,
-    at: new Date().toISOString(),
+    time: clock,
+    at: now.toISOString(),
     seed: seed0,
     materials: picked.used.length,
     lines: verdict.lines.length,
@@ -229,7 +234,6 @@ export async function makeDream({
   }
 
   const store = loadStore()
-  store.dreams = store.dreams.filter((d) => d.date !== today)
   store.dreams.unshift(dream)
   store.dreams = store.dreams.slice(0, 120)
   const saved = saveStore(store)

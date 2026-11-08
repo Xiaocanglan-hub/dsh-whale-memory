@@ -174,7 +174,9 @@ async function dreamAfterSleep(cfg, report, opts = {}) {
       // 不是我们加的保险，是把她的判据写回给她看。
       // 纸条只是一句提醒：她做了什么梦，原文留在 dreams.json，等她自己想讲时用
       // deepsleep_dream_text 取出来。桌上不该预先替她把话说完。
-      const note = await addFishNote('我做了个梦（是梦，不是发生过的事）')
+      // 带上时刻：一天可以做好几场梦，纸条得能和梦对上号。
+      const stamp = res.dream?.time ? `${res.dream.time}，` : ''
+      const note = await addFishNote(`我做了个梦（${stamp}是梦，不是发生过的事）`)
       report.dream.note = note ? '已留纸条' : '纸条没放成'
       if (note) report.notes.push(`在桌上留了张纸条：「${note.text}」`)
     } else if (dcfg.narrate === 'never') {
@@ -1390,17 +1392,31 @@ export function apply(ctx) {
       additionalProperties: false,
       properties: {
         index: { type: 'number', description: '第几近的梦，0 = 最近一次（默认 0）' },
+        time: { type: 'string', description: '按时刻取，写成 08:19（纸条上写的就是这个）' },
       },
     },
     async execute(args) {
       const store = await readJson(dreamStorePath(), { dreams: [], discarded: 0 })
       const list = Array.isArray(store.dreams) ? store.dreams : []
-      const i = Math.max(0, Math.min(list.length - 1, Number(args.index ?? 0) || 0))
+      if (list.length === 0) return asText('还没做过梦。睡着的时候才会有。')
+
+      let i = Math.max(0, Math.min(list.length - 1, Number(args.index ?? 0) || 0))
+      if (typeof args.time === 'string' && args.time.trim()) {
+        const want = args.time.trim()
+        const found = list.findIndex((d) => d.time === want)
+        if (found < 0) {
+          const times = list.slice(0, 6).map((d) => `${d.date} ${d.time}`).join('、')
+          return asText(`没有 ${want} 那场梦。最近的几场在：${times}`)
+        }
+        i = found
+      }
+
       const d = list[i]
       if (!d) return asText('还没做过梦。睡着的时候才会有。')
-      const lines = [`${d.date} 的梦（${d.chars} 字）:`, d.text]
+      const when = `${d.date}${d.time ? ` ${d.time}` : ''}`
+      const lines = [`${when} 的梦（${d.chars} 字）:`, d.text]
       if (d.wakeLine) lines.push('', `一句提要：${d.wakeLine}`)
-      if (list.length > 1) lines.push('', `还有更早的 ${list.length - 1} 场，index 换个数就能取。`)
+      if (list.length > 1) lines.push('', `还有更早的 ${list.length - 1} 场，index 换个数、或按 time 取。`)
       return asText(lines.join('\n'))
     },
   }))
