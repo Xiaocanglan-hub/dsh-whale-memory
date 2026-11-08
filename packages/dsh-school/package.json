@@ -1,0 +1,59 @@
+{
+  "name": "dsh-school",
+  "version": "0.2.0",
+  "type": "module",
+  "description": "让她自己补上那些你没答、她也没懂的问题：聊天里悬着的问被记下来，你不看她的时候她自己去查，查到了在你桌上留一张纸条。只读她的经历，不写她的记忆，也不影响她的成长。",
+  "author": "Xiaocanglan-hub",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Xiaocanglan-hub/dsh-whale-memory.git",
+    "directory": "packages/dsh-school"
+  },
+  "homepage": "https://github.com/Xiaocanglan-hub/dsh-whale-memory/tree/main/packages/dsh-school",
+  "bugs": {
+    "url": "https://github.com/Xiaocanglan-hub/dsh-whale-memory/issues"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "virtual-persona",
+    "self-learning",
+    "curiosity",
+    "questions",
+    "dsh-fish"
+  ],
+  "exports": {
+    ".": "./index.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.png"
+  },
+  "files": [
+    "index.js",
+    "search.js",
+    "study.js",
+    "idle.ps1",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.png",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "dsh": ">=0.2.0"
+  },
+  "peerDependencies": {
+    "@ssamurias/dsh-fish": "*"
+  },
+  "peerDependenciesMeta": {
+    "@ssamurias/dsh-fish": {
+      "optional": true
+    }
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
